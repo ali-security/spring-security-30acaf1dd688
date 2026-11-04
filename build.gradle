@@ -4,11 +4,24 @@ buildscript {
 		classpath "org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion"
 	}
 	repositories {
-		maven { url 'https://repo.spring.io/plugins-snapshot' }
+		maven { url 'https://repo.huaweicloud.com/repository/maven' }
 		maven { url 'https://plugins.gradle.org/m2/' }
 	}
 }
 apply plugin: 'io.spring.convention.root'
+
+// Sealed build: repo.spring.io now requires authentication (401) and jcenter is retired;
+// redirect them to a public mirror that still serves spring-build-conventions and its deps.
+allprojects {
+	repositories.all { repo ->
+		if (repo instanceof MavenArtifactRepository) {
+			def u = repo.url.toString()
+			if (u.startsWith('https://repo.spring.io/') || u.startsWith('https://jcenter.bintray.com')) {
+				repo.url = 'https://repo.huaweicloud.com/repository/maven'
+			}
+		}
+	}
+}
 
 group = 'org.springframework.security'
 description = 'Spring Security'
