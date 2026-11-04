@@ -78,10 +78,10 @@ public class SimpleAttributes2GrantedAuthoritiesMapper implements
 	 */
 	private GrantedAuthority getGrantedAuthority(String attribute) {
 		if (isConvertAttributeToLowerCase()) {
-			attribute = attribute.toLowerCase(Locale.getDefault());
+			attribute = attribute.toLowerCase(Locale.ROOT);
 		}
 		else if (isConvertAttributeToUpperCase()) {
-			attribute = attribute.toUpperCase(Locale.getDefault());
+			attribute = attribute.toUpperCase(Locale.ROOT);
 		}
 		if (isAddPrefixIfAlreadyExisting() || !attribute.startsWith(getAttributePrefix())) {
 			return new SimpleGrantedAuthority(getAttributePrefix() + attribute);

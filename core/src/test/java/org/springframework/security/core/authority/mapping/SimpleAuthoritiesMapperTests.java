@@ -71,6 +71,45 @@ public class SimpleAuthoritiesMapperTests {
 	}
 
 	@Test
+	public void caseIsConvertedCorrectlyWhenTurkishLocale() {
+		Locale defaultLocale = Locale.getDefault();
+		try {
+			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+			SimpleAuthorityMapper mapper = new SimpleAuthorityMapper();
+			mapper.setPrefix("");
+			mapper.setConvertToLowerCase(true);
+			Set<String> mapped = AuthorityUtils.authorityListToSet(mapper
+					.mapAuthorities(AuthorityUtils.createAuthorityList("ADMIN")));
+			assertThat(mapped).containsOnly("admin");
+
+			mapper.setConvertToLowerCase(false);
+			mapper.setConvertToUpperCase(true);
+			mapped = AuthorityUtils.authorityListToSet(mapper
+					.mapAuthorities(AuthorityUtils.createAuthorityList("admin")));
+			assertThat(mapped).containsOnly("ADMIN");
+		}
+		finally {
+			Locale.setDefault(defaultLocale);
+		}
+	}
+
+	@Test
+	public void defaultPrefixIsAppliedToUpperCaseWhenTurkishLocale() {
+		Locale defaultLocale = Locale.getDefault();
+		try {
+			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+			SimpleAuthorityMapper mapper = new SimpleAuthorityMapper();
+			mapper.setConvertToUpperCase(true);
+			Set<String> mapped = AuthorityUtils.authorityListToSet(mapper
+					.mapAuthorities(AuthorityUtils.createAuthorityList("admin")));
+			assertThat(mapped).containsOnly("ROLE_ADMIN");
+		}
+		finally {
+			Locale.setDefault(defaultLocale);
+		}
+	}
+
+	@Test
 	public void duplicatesAreRemoved() {
 		SimpleAuthorityMapper mapper = new SimpleAuthorityMapper();
 		mapper.setConvertToUpperCase(true);

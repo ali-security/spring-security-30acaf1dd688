@@ -16,10 +16,13 @@
 
 package org.springframework.security.provisioning;
 
+import java.util.Locale;
+
 import org.junit.Test;
 import org.springframework.security.core.userdetails.PasswordEncodedUser;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -48,5 +51,49 @@ public class InMemoryUserDetailsManagerTests {
 		String newPassword = "newPassword";
 		this.manager.updatePassword(userNotLowerCase, newPassword);
 		assertThat(this.manager.loadUserByUsername(userNotLowerCase.getUsername()).getPassword()).isEqualTo(newPassword);
+	}
+
+	@Test
+	public void loadUserByUsernameWhenTurkishLocaleThenUsernameIsNotLocaleDependent() {
+		Locale defaultLocale = Locale.getDefault();
+		try {
+			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+			UserDetails admin = User.withUserDetails(PasswordEncodedUser.admin())
+					.username("ADMIN")
+					.build();
+			InMemoryUserDetailsManager manager = new InMemoryUserDetailsManager(admin);
+
+			assertThat(manager.userExists("admin")).isTrue();
+			assertThat(manager.loadUserByUsername("admin").getUsername()).isEqualTo("ADMIN");
+			// dotless i (U+0131) must not resolve to the "ADMIN" user
+			assertThat(manager.userExists("adm\u0131n")).isFalse();
+			assertThatThrownBy(() -> manager.loadUserByUsername("adm\u0131n"))
+					.isInstanceOf(UsernameNotFoundException.class);
+		}
+		finally {
+			Locale.setDefault(defaultLocale);
+		}
+	}
+
+	@Test
+	public void updatePasswordWhenTurkishLocaleThenUpdatesSameUser() {
+		Locale defaultLocale = Locale.getDefault();
+		try {
+			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+			UserDetails admin = User.withUserDetails(PasswordEncodedUser.admin())
+					.username("admin")
+					.build();
+			InMemoryUserDetailsManager manager = new InMemoryUserDetailsManager(admin);
+			UserDetails upperCaseAdmin = User.withUserDetails(admin)
+					.username("ADMIN")
+					.build();
+
+			manager.updatePassword(upperCaseAdmin, "newPassword");
+
+			assertThat(manager.loadUserByUsername("admin").getPassword()).isEqualTo("newPassword");
+		}
+		finally {
+			Locale.setDefault(defaultLocale);
+		}
 	}
 }

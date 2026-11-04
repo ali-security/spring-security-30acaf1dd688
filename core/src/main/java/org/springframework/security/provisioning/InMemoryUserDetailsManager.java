@@ -18,6 +18,7 @@ package org.springframework.security.provisioning;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
@@ -86,21 +87,21 @@ public class InMemoryUserDetailsManager implements UserDetailsManager,
 	public void createUser(UserDetails user) {
 		Assert.isTrue(!userExists(user.getUsername()), "user should not exist");
 
-		users.put(user.getUsername().toLowerCase(), new MutableUser(user));
+		users.put(user.getUsername().toLowerCase(Locale.ROOT), new MutableUser(user));
 	}
 
 	public void deleteUser(String username) {
-		users.remove(username.toLowerCase());
+		users.remove(username.toLowerCase(Locale.ROOT));
 	}
 
 	public void updateUser(UserDetails user) {
 		Assert.isTrue(userExists(user.getUsername()), "user should exist");
 
-		users.put(user.getUsername().toLowerCase(), new MutableUser(user));
+		users.put(user.getUsername().toLowerCase(Locale.ROOT), new MutableUser(user));
 	}
 
 	public boolean userExists(String username) {
-		return users.containsKey(username.toLowerCase());
+		return users.containsKey(username.toLowerCase(Locale.ROOT));
 	}
 
 	public void changePassword(String oldPassword, String newPassword) {
@@ -143,14 +144,14 @@ public class InMemoryUserDetailsManager implements UserDetailsManager,
 	@Override
 	public UserDetails updatePassword(UserDetails user, String newPassword) {
 		String username = user.getUsername();
-		MutableUserDetails mutableUser = this.users.get(username.toLowerCase());
+		MutableUserDetails mutableUser = this.users.get(username.toLowerCase(Locale.ROOT));
 		mutableUser.setPassword(newPassword);
 		return mutableUser;
 	}
 
 	public UserDetails loadUserByUsername(String username)
 			throws UsernameNotFoundException {
-		UserDetails user = users.get(username.toLowerCase());
+		UserDetails user = users.get(username.toLowerCase(Locale.ROOT));
 
 		if (user == null) {
 			throw new UsernameNotFoundException(username);

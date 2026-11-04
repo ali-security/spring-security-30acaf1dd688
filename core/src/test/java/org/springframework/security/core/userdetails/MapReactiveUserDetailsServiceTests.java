@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Locale;
 
 import org.junit.Test;
 
@@ -76,5 +77,49 @@ public class MapReactiveUserDetailsServiceTests {
 	public void updatePassword() {
 		users.updatePassword(USER_DETAILS, "new").block();
 		assertThat(users.findByUsername(USER_DETAILS.getUsername()).block().getPassword()).isEqualTo("new");
+	}
+
+	@Test
+	public void findByUsernameWhenTurkishLocaleThenUsernameIsNotLocaleDependent() {
+		Locale defaultLocale = Locale.getDefault();
+		try {
+			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+			UserDetails admin = User.withUsername("ADMIN")
+					.password("password")
+					.roles("ADMIN")
+					.build();
+			MapReactiveUserDetailsService users = new MapReactiveUserDetailsService(admin);
+
+			assertThat(users.findByUsername("admin").block()).isEqualTo(admin);
+			// dotless i (U+0131) must not resolve to the "ADMIN" user
+			assertThat(users.findByUsername("adm\u0131n").block()).isNull();
+		}
+		finally {
+			Locale.setDefault(defaultLocale);
+		}
+	}
+
+	@Test
+	public void updatePasswordWhenTurkishLocaleThenUpdatesSameUser() {
+		Locale defaultLocale = Locale.getDefault();
+		try {
+			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+			UserDetails admin = User.withUsername("admin")
+					.password("password")
+					.roles("ADMIN")
+					.build();
+			MapReactiveUserDetailsService users = new MapReactiveUserDetailsService(admin);
+			UserDetails upperCaseAdmin = User.withUserDetails(admin)
+					.username("ADMIN")
+					.build();
+
+			users.updatePassword(upperCaseAdmin, "new").block();
+
+			assertThat(users.findByUsername("admin").block().getPassword()).isEqualTo("new");
+			assertThat(users.findByUsername("ADMIN").block().getPassword()).isEqualTo("new");
+		}
+		finally {
+			Locale.setDefault(defaultLocale);
+		}
 	}
 }

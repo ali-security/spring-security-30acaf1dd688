@@ -18,6 +18,8 @@ package org.springframework.security.core.userdetails.memory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Locale;
+
 import org.junit.Test;
 
 /**
@@ -65,6 +67,27 @@ public class UserAttributeEditorTests {
 		assertThat(user.getAuthorities()).hasSize(2);
 		assertThat(user.getAuthorities().get(0).getAuthority()).isEqualTo("ROLE_ONE");
 		assertThat(user.getAuthorities().get(1).getAuthority()).isEqualTo("ROLE_TWO");
+	}
+
+	@Test
+	public void testDisabledKeywordWhenTurkishLocale() {
+		Locale defaultLocale = Locale.getDefault();
+		try {
+			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+			UserAttributeEditor editor = new UserAttributeEditor();
+			editor.setAsText("password,DISABLED,ROLE_ONE,ROLE_TWO");
+
+			UserAttribute user = (UserAttribute) editor.getValue();
+			assertThat(user.isValid()).isTrue();
+			assertThat(user.isEnabled()).isFalse();
+			assertThat(user.getPassword()).isEqualTo("password");
+			assertThat(user.getAuthorities()).hasSize(2);
+			assertThat(user.getAuthorities().get(0).getAuthority()).isEqualTo("ROLE_ONE");
+			assertThat(user.getAuthorities().get(1).getAuthority()).isEqualTo("ROLE_TWO");
+		}
+		finally {
+			Locale.setDefault(defaultLocale);
+		}
 	}
 
 	@Test

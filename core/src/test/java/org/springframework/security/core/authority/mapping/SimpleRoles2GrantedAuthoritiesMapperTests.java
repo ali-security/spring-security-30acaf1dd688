@@ -123,6 +123,39 @@ public class SimpleRoles2GrantedAuthoritiesMapperTests {
 		testGetGrantedAuthorities(mapper, roles, expectedGas);
 	}
 
+	@Test
+	public final void testGetGrantedAuthoritiesToUpperCaseWhenTurkishLocale() {
+		Locale defaultLocale = Locale.getDefault();
+		try {
+			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+			String[] roles = { "admin", "Editor" };
+			String[] expectedGas = { "ROLE_ADMIN", "ROLE_EDITOR" };
+			SimpleAttributes2GrantedAuthoritiesMapper mapper = getDefaultMapper();
+			mapper.setConvertAttributeToUpperCase(true);
+			mapper.setAttributePrefix("ROLE_");
+			testGetGrantedAuthorities(mapper, roles, expectedGas);
+		}
+		finally {
+			Locale.setDefault(defaultLocale);
+		}
+	}
+
+	@Test
+	public final void testGetGrantedAuthoritiesToLowerCaseWhenTurkishLocale() {
+		Locale defaultLocale = Locale.getDefault();
+		try {
+			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+			String[] roles = { "ADMIN", "EDITOR" };
+			String[] expectedGas = { "admin", "editor" };
+			SimpleAttributes2GrantedAuthoritiesMapper mapper = getDefaultMapper();
+			mapper.setConvertAttributeToLowerCase(true);
+			testGetGrantedAuthorities(mapper, roles, expectedGas);
+		}
+		finally {
+			Locale.setDefault(defaultLocale);
+		}
+	}
+
 	private void testGetGrantedAuthorities(
 			SimpleAttributes2GrantedAuthoritiesMapper mapper, String[] roles,
 			String[] expectedGas) {

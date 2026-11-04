@@ -69,10 +69,10 @@ public final class SimpleAuthorityMapper implements GrantedAuthoritiesMapper,
 
 	private GrantedAuthority mapAuthority(String name) {
 		if (convertToUpperCase) {
-			name = name.toUpperCase();
+			name = name.toUpperCase(Locale.ROOT);
 		}
 		else if (convertToLowerCase) {
-			name = name.toLowerCase();
+			name = name.toLowerCase(Locale.ROOT);
 		}
 
 		if (prefix.length() > 0 && !name.startsWith(prefix)) {
