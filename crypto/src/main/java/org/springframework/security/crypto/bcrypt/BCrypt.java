@@ -17,6 +17,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
 
 import java.security.SecureRandom;
+import java.util.Arrays;
 
 /**
  * BCrypt implements OpenBSD-style Blowfish password hashing using the scheme described in
@@ -535,13 +536,30 @@ public class BCrypt {
 	 * @throws IllegalArgumentException if invalid salt is passed
 	 */
 	public static String hashpw(String password, String salt) throws IllegalArgumentException {
+		return hashpw(toPasswordBytes(password), salt, false);
+	}
+
+	private static byte[] toPasswordBytes(String password) {
+		try {
+			return String.valueOf(password).getBytes("UTF-8");
+		}
+		catch (UnsupportedEncodingException uee) {
+			throw new AssertionError("UTF-8 is not supported");
+		}
+	}
+
+	private static String hashpw(byte passwordb[], String salt, boolean for_check) {
 		BCrypt B;
 		String real_salt;
-		byte passwordb[], saltb[], hashed[];
+		byte saltb[], hashed[];
 		char minor = (char) 0;
 		int rounds, off = 0;
 		StringBuilder rs = new StringBuilder();
 
+		// Enforce max length for new passwords only
+		if (!for_check && passwordb.length > 72) {
+			throw new IllegalArgumentException("password cannot be more than 72 bytes");
+		}
 		if (salt == null) {
 			throw new IllegalArgumentException("salt cannot be null");
 		}
@@ -577,11 +595,8 @@ public class BCrypt {
 		rounds = Integer.parseInt(salt.substring(off, off + 2));
 
 		real_salt = salt.substring(off + 3, off + 25);
-		try {
-			passwordb = (password + (minor >= 'a' ? "\000" : "")).getBytes("UTF-8");
-		}
-		catch (UnsupportedEncodingException uee) {
-			throw new AssertionError("UTF-8 is not supported");
+		if (minor >= 'a') {
+			passwordb = Arrays.copyOf(passwordb, passwordb.length + 1);
 		}
 
 		saltb = decode_base64(real_salt, BCRYPT_SALT_LEN);
@@ -656,7 +671,7 @@ public class BCrypt {
 	 * @return true if the passwords match, false otherwise
 	 */
 	public static boolean checkpw(String plaintext, String hashed) {
-		return equalsNoEarlyReturn(hashed, hashpw(plaintext, hashed));
+		return equalsNoEarlyReturn(hashed, hashpw(toPasswordBytes(plaintext), hashed, true));
 	}
 
 	static boolean equalsNoEarlyReturn(String a, String b) {

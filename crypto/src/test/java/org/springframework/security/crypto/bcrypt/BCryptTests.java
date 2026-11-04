@@ -308,4 +308,17 @@ public class BCryptTests {
 
 		assertThat(BCrypt.equalsNoEarlyReturn("test", "pass")).isFalse();
 	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void hashpwFailsWhenPasswordOverMaxLength() {
+		String password73chars = "1234567890123456789012345678901234567890123456789012345678901234567890123";
+		BCrypt.hashpw(password73chars, BCrypt.gensalt(4));
+	}
+
+	@Test
+	public void checkpwWhenPasswordOverMaxLengthThenAllowToMatch() {
+		String password73chars = "1234567890123456789012345678901234567890123456789012345678901234567890123";
+		assertThat(BCrypt.checkpw(password73chars,
+				"$2a$10$1l9.kvQTsqNLiCYFqmKtQOHkp.BrgIrwsnTzWo9jdbQRbuBYQ/AVK")).isTrue();
+	}
 }
