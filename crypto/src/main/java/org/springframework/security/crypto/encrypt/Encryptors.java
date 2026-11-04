@@ -15,7 +15,6 @@
  */
 package org.springframework.security.crypto.encrypt;
 
-import org.springframework.security.crypto.encrypt.AesBytesEncryptor.CipherAlgorithm;
 import org.springframework.security.crypto.keygen.KeyGenerators;
 
 /**
@@ -39,10 +38,14 @@ public class Encryptors {
 	 * not be shared
 	 * @param salt a hex-encoded, random, site-global salt value to use to generate the
 	 * key
+	 * @deprecated Use {@link AesGcmBytesEncryptor#withPassword(String, CharSequence)}
+	 * instead.
 	 */
+	@Deprecated
+	@SuppressWarnings("deprecation")
 	public static BytesEncryptor stronger(CharSequence password, CharSequence salt) {
 		return new AesBytesEncryptor(password.toString(), salt,
-				KeyGenerators.secureRandom(16), CipherAlgorithm.GCM);
+				KeyGenerators.secureRandom(16), AesBytesEncryptor.CipherAlgorithm.GCM);
 	}
 
 	/**
@@ -65,7 +68,11 @@ public class Encryptors {
 	 *
 	 * @see #stronger(CharSequence, CharSequence), which uses the significatly more secure
 	 * GCM (instead of CBC)
+	 * @deprecated Use {@link AesCbcBytesEncryptor#withPassword(String, CharSequence)}
+	 * instead.
 	 */
+	@Deprecated
+	@SuppressWarnings("deprecation")
 	public static BytesEncryptor standard(CharSequence password, CharSequence salt) {
 		return new AesBytesEncryptor(password.toString(), salt,
 				KeyGenerators.secureRandom(16));
@@ -77,8 +84,12 @@ public class Encryptors {
 	 *
 	 * @param password the password used to generate the encryptor's secret key; should
 	 * not be shared
+	 * @deprecated Use {@link AesGcmBytesEncryptor#withPassword(String, CharSequence)}
+	 * instead.
 	 * @see Encryptors#stronger(CharSequence, CharSequence)
 	 */
+	@Deprecated
+	@SuppressWarnings("deprecation")
 	public static TextEncryptor delux(CharSequence password, CharSequence salt) {
 		return new HexEncodingTextEncryptor(stronger(password, salt));
 	}
@@ -89,8 +100,12 @@ public class Encryptors {
 	 *
 	 * @param password the password used to generate the encryptor's secret key; should
 	 * not be shared
+	 * @deprecated Use {@link AesCbcBytesEncryptor#withPassword(String, CharSequence)}
+	 * instead.
 	 * @see Encryptors#standard(CharSequence, CharSequence)
 	 */
+	@Deprecated
+	@SuppressWarnings("deprecation")
 	public static TextEncryptor text(CharSequence password, CharSequence salt) {
 		return new HexEncodingTextEncryptor(standard(password, salt));
 	}
@@ -109,6 +124,7 @@ public class Encryptors {
 	 * mechanism to query encrypted data.
 	 */
 	@Deprecated
+	@SuppressWarnings("deprecation")
 	public static TextEncryptor queryableText(CharSequence password, CharSequence salt) {
 		return new HexEncodingTextEncryptor(new AesBytesEncryptor(password.toString(),
 				salt));

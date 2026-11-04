@@ -40,7 +40,9 @@ import org.springframework.security.crypto.keygen.KeyGenerators;
  *
  * @author Keith Donald
  * @author Dave Syer
+ * @deprecated Use {@link AesCbcBytesEncryptor} or {@link AesGcmBytesEncryptor} instead.
  */
+@Deprecated
 final class AesBytesEncryptor implements BytesEncryptor {
 
 	private final SecretKey secretKey;
