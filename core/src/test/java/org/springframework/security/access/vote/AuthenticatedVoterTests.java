@@ -64,6 +64,8 @@ public class AuthenticatedVoterTests {
 				voter.vote(createRememberMe(), null, def));
 		assertThat(AccessDecisionVoter.ACCESS_GRANTED).isEqualTo(
 				voter.vote(createFullyAuthenticated(), null, def));
+		assertThat(AccessDecisionVoter.ACCESS_DENIED).isEqualTo(
+				voter.vote(null, null, def));
 	}
 
 	@Test
@@ -77,6 +79,8 @@ public class AuthenticatedVoterTests {
 				voter.vote(createRememberMe(), null, def));
 		assertThat(AccessDecisionVoter.ACCESS_GRANTED).isEqualTo(
 				voter.vote(createFullyAuthenticated(), null, def));
+		assertThat(AccessDecisionVoter.ACCESS_DENIED).isEqualTo(
+				voter.vote(null, null, def));
 	}
 
 	@Test
@@ -90,6 +94,8 @@ public class AuthenticatedVoterTests {
 				voter.vote(createRememberMe(), null, def));
 		assertThat(AccessDecisionVoter.ACCESS_GRANTED).isEqualTo(
 				voter.vote(createFullyAuthenticated(), null, def));
+		assertThat(AccessDecisionVoter.ACCESS_DENIED).isEqualTo(
+				voter.vote(null, null, def));
 	}
 
 	@Test
