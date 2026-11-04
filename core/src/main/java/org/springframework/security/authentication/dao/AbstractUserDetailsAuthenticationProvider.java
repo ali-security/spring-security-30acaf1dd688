@@ -90,6 +90,7 @@ public abstract class AbstractUserDetailsAuthenticationProvider implements
 	protected boolean hideUserNotFoundExceptions = true;
 	private UserDetailsChecker preAuthenticationChecks = new DefaultPreAuthenticationChecks();
 	private UserDetailsChecker postAuthenticationChecks = new DefaultPostAuthenticationChecks();
+	private boolean alwaysPerformAdditionalChecksOnUser = true;
 	private GrantedAuthoritiesMapper authoritiesMapper = new NullAuthoritiesMapper();
 
 	// ~ Methods
@@ -162,8 +163,7 @@ public abstract class AbstractUserDetailsAuthenticationProvider implements
 		}
 
 		try {
-			preAuthenticationChecks.check(user);
-			additionalAuthenticationChecks(user,
+			performPreCheck(user,
 					(UsernamePasswordAuthenticationToken) authentication);
 		}
 		catch (AuthenticationException exception) {
@@ -173,8 +173,7 @@ public abstract class AbstractUserDetailsAuthenticationProvider implements
 				cacheWasUsed = false;
 				user = retrieveUser(username,
 						(UsernamePasswordAuthenticationToken) authentication);
-				preAuthenticationChecks.check(user);
-				additionalAuthenticationChecks(user,
+				performPreCheck(user,
 						(UsernamePasswordAuthenticationToken) authentication);
 			}
 			else {
@@ -195,6 +194,26 @@ public abstract class AbstractUserDetailsAuthenticationProvider implements
 		}
 
 		return createSuccessAuthentication(principalToReturn, authentication, user);
+	}
+
+	private void performPreCheck(UserDetails user,
+			UsernamePasswordAuthenticationToken authentication) {
+		try {
+			preAuthenticationChecks.check(user);
+		}
+		catch (AuthenticationException ex) {
+			if (!alwaysPerformAdditionalChecksOnUser) {
+				throw ex;
+			}
+			try {
+				additionalAuthenticationChecks(user, authentication);
+			}
+			catch (AuthenticationException ignored) {
+				// preserve the original failed check
+			}
+			throw ex;
+		}
+		additionalAuthenticationChecks(user, authentication);
 	}
 
 	/**
@@ -341,6 +360,23 @@ public abstract class AbstractUserDetailsAuthenticationProvider implements
 
 	public void setPostAuthenticationChecks(UserDetailsChecker postAuthenticationChecks) {
 		this.postAuthenticationChecks = postAuthenticationChecks;
+	}
+
+	/**
+	 * Set whether to always perform the additional checks on the user, even if the
+	 * pre-authentication checks fail. This is useful to ensure that regardless of the
+	 * state of the user account, authentication takes the same amount of time to
+	 * complete.
+	 *
+	 * <p>
+	 * For applications that rely on the additional checks running only once should set
+	 * this value to {@code false}
+	 * @param alwaysPerformAdditionalChecksOnUser
+	 * @since 5.7.23
+	 */
+	public void setAlwaysPerformAdditionalChecksOnUser(
+			boolean alwaysPerformAdditionalChecksOnUser) {
+		this.alwaysPerformAdditionalChecksOnUser = alwaysPerformAdditionalChecksOnUser;
 	}
 
 	public void setAuthoritiesMapper(GrantedAuthoritiesMapper authoritiesMapper) {

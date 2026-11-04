@@ -17,12 +17,15 @@
 package org.springframework.security.authentication.dao;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.isA;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -33,6 +36,7 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.junit.Assume;
 import org.junit.Test;
 import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.security.authentication.AccountExpiredException;
@@ -50,6 +54,7 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.PasswordEncodedUser;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsChecker;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.core.userdetails.cache.EhCacheBasedUserCache;
@@ -650,12 +655,10 @@ public class DaoAuthenticationProviderTests {
 		}
 	}
 
-	/**
-	 * This is an explicit test for SEC-2056. It is intentionally ignored since this test
-	 * is not deterministic and {@link #testUserNotFoundEncodesPassword()} ensures that
-	 * SEC-2056 is fixed.
-	 */
-	public void IGNOREtestSec2056() {
+	// SEC-2056
+	@Test
+	public void testSec2056() {
+		assumeTimingTestsEnabled();
 		UsernamePasswordAuthenticationToken foundUser = new UsernamePasswordAuthenticationToken(
 				"rod", "koala");
 		UsernamePasswordAuthenticationToken notFoundUser = new UsernamePasswordAuthenticationToken(
@@ -696,6 +699,123 @@ public class DaoAuthenticationProviderTests {
 				"User not found average " + userNotFoundAvg
 						+ " should be within 3ms of user found average "
 						+ userFoundAvg).isTrue();
+	}
+
+	// related to SEC-2056
+	@Test
+	public void testDisabledUserTiming() {
+		assumeTimingTestsEnabled();
+		UsernamePasswordAuthenticationToken user = new UsernamePasswordAuthenticationToken(
+				"rod", "koala");
+		PasswordEncoder encoder = new BCryptPasswordEncoder();
+		DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+		provider.setPasswordEncoder(encoder);
+		MockUserDetailsServiceUserRod users = new MockUserDetailsServiceUserRod();
+		users.password = encoder.encode((CharSequence) user.getCredentials());
+		provider.setUserDetailsService(users);
+		int sampleSize = 100;
+		List<Long> enabledTimes = new ArrayList<>(sampleSize);
+		for (int i = 0; i < sampleSize; i++) {
+			long start = System.currentTimeMillis();
+			provider.authenticate(user);
+			enabledTimes.add(System.currentTimeMillis() - start);
+		}
+		UserDetailsChecker preChecks = mock(UserDetailsChecker.class);
+		willThrow(new DisabledException("User is disabled")).given(preChecks)
+				.check(any(UserDetails.class));
+		provider.setPreAuthenticationChecks(preChecks);
+		List<Long> disabledTimes = new ArrayList<>(sampleSize);
+		for (int i = 0; i < sampleSize; i++) {
+			long start = System.currentTimeMillis();
+			assertThatExceptionOfType(DisabledException.class)
+					.isThrownBy(() -> provider.authenticate(user));
+			disabledTimes.add(System.currentTimeMillis() - start);
+		}
+		double enabledAvg = avg(enabledTimes);
+		double disabledAvg = avg(disabledTimes);
+		assertThat(Math.abs(disabledAvg - enabledAvg) <= 3).withFailMessage(
+				"Disabled user average " + disabledAvg
+						+ " should be within 3ms of enabled user average "
+						+ enabledAvg).isTrue();
+	}
+
+	// related to SEC-2056: the password must still be checked when the
+	// pre-authentication checks fail, otherwise the response time leaks the account
+	// state
+	@Test
+	public void authenticateWhenUserDisabledThenAdditionalChecksStillPerformed() {
+		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(
+				"peter", "opal");
+		PasswordEncoder encoder = mock(PasswordEncoder.class);
+		given(encoder.matches(any(), any())).willReturn(true);
+		DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+		provider.setPasswordEncoder(encoder);
+		provider.setUserDetailsService(new MockUserDetailsServiceUserPeter());
+		provider.setUserCache(new MockUserCache());
+		assertThatExceptionOfType(DisabledException.class)
+				.isThrownBy(() -> provider.authenticate(token));
+		verify(encoder).matches(any(), any());
+	}
+
+	// related to SEC-2056: a failing additional check must not mask the original
+	// pre-authentication failure
+	@Test
+	public void authenticateWhenUserLockedAndInvalidPasswordThenAdditionalChecksPerformedAndOriginalFailureThrown() {
+		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(
+				"peter", "INVALID_PASSWORD");
+		PasswordEncoder encoder = mock(PasswordEncoder.class);
+		given(encoder.matches(any(), any())).willReturn(false);
+		DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+		provider.setPasswordEncoder(encoder);
+		provider.setUserDetailsService(new MockUserDetailsServiceUserPeterAccountLocked());
+		provider.setUserCache(new MockUserCache());
+		assertThatExceptionOfType(LockedException.class)
+				.isThrownBy(() -> provider.authenticate(token));
+		verify(encoder).matches(any(), any());
+	}
+
+	// related to SEC-2056: expired accounts must not short-circuit the password check
+	@Test
+	public void authenticateWhenAccountExpiredThenAdditionalChecksStillPerformed() {
+		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(
+				"peter", "opal");
+		PasswordEncoder encoder = mock(PasswordEncoder.class);
+		given(encoder.matches(any(), any())).willReturn(true);
+		DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+		provider.setPasswordEncoder(encoder);
+		provider.setUserDetailsService(
+				new MockUserDetailsServiceUserPeterAccountExpired());
+		provider.setUserCache(new MockUserCache());
+		assertThatExceptionOfType(AccountExpiredException.class)
+				.isThrownBy(() -> provider.authenticate(token));
+		verify(encoder).matches(any(), any());
+	}
+
+	@Test
+	public void authenticateWhenAlwaysPerformAdditionalChecksOnUserFalseThenAdditionalChecksSkipped() {
+		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(
+				"peter", "opal");
+		PasswordEncoder encoder = mock(PasswordEncoder.class);
+		given(encoder.matches(any(), any())).willReturn(true);
+		DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+		provider.setPasswordEncoder(encoder);
+		provider.setAlwaysPerformAdditionalChecksOnUser(false);
+		provider.setUserDetailsService(new MockUserDetailsServiceUserPeter());
+		provider.setUserCache(new MockUserCache());
+		assertThatExceptionOfType(DisabledException.class)
+				.isThrownBy(() -> provider.authenticate(token));
+		verify(encoder, times(0)).matches(any(), any());
+	}
+
+	/**
+	 * The timing tests are not deterministic, so they only run when the
+	 * {@code spring.security.timing-tests} system property is set to {@code true}.
+	 * {@link #testUserNotFoundEncodesPassword()} and
+	 * {@link #authenticateWhenUserDisabledThenAdditionalChecksStillPerformed()} ensure
+	 * that SEC-2056 is fixed deterministically.
+	 */
+	private static void assumeTimingTestsEnabled() {
+		Assume.assumeTrue("true".equals(System.getProperty("spring.security.timing-tests")));
 	}
 
 	private double avg(List<Long> counts) {
